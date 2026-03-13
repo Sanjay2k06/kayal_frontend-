@@ -73,12 +73,19 @@ const Navbar = () => {
           {/* Desktop nav with gooey blob */}
           <div ref={navRef} className="relative hidden items-center gap-0.5 md:flex">
             {/* Animated blob background */}
-            <motion.div
-              className="absolute rounded-lg bg-primary gooey-filter"
-              animate={blobStyle}
-              transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              style={{ position: "absolute", zIndex: 0 }}
-            />
+            {blobStyle.width && (
+              <motion.div
+                className="absolute rounded-lg bg-primary gooey-filter"
+                animate={{
+                  left: blobStyle.left as number,
+                  width: blobStyle.width as number,
+                  height: blobStyle.height as number,
+                  top: blobStyle.top as number,
+                }}
+                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                style={{ position: "absolute", zIndex: 0 }}
+              />
+            )}
             {navItems.map((item, i) => {
               const isActive = location.pathname === item.path;
               return (
