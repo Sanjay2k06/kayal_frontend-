@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, History, Bookmark, ChevronLeft, ChevronRight } from "lucide-react";
 import ChatMessage from "@/components/ChatMessage";
-import SchemeCard from "@/components/SchemeCard";
+import SchemeCard, { Scheme } from "@/components/SchemeCard";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import Navbar from "@/components/Navbar";
-import { sampleSchemes } from "@/data/schemes";
+import { chatQuery, getChatHistory, submitVoiceQuery } from "@/lib/api";
+import { isAuthenticated } from "@/lib/auth";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-  schemes?: typeof sampleSchemes;
+  schemes?: Scheme[];
 }
 
 const initialMessages: Message[] = [
@@ -22,41 +23,93 @@ const initialMessages: Message[] = [
   },
 ];
 
-const sidebarHistory = [
-  "Farmer schemes in Maharashtra",
-  "Education scholarships for girls",
-  "Health insurance for BPL families",
-];
-
 const Assistant = () => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarHistory, setSidebarHistory] = useState<string[]>([]);
+  const [lastVoiceBlob, setLastVoiceBlob] = useState<Blob | null>(null);
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "uploading" | "error">("idle");
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const sendMessage = (text: string) => {
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!isAuthenticated()) return;
+      try {
+        const history = await getChatHistory();
+        setSidebarHistory(history.map((item) => item.query));
+      } catch {
+        setSidebarHistory([]);
+      }
+    };
+    void loadHistory();
+  }, []);
+
+  const sendMessage = async (text: string) => {
     if (!text.trim()) return;
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: text.trim() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      setIsTyping(false);
+    try {
+      const ai = await chatQuery(text.trim());
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          "Based on your profile, I have identified the following schemes that match your eligibility criteria. Each scheme is ranked by relevance to your situation.",
-        schemes: sampleSchemes.slice(0, 3),
+        content: ai.response,
+        schemes: ai.recommended_schemes,
       };
       setMessages((prev) => [...prev, aiMsg]);
-    }, 1800);
+    } catch {
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "I could not process your request right now. Please try again.",
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleVoiceMessage = async (audio: Blob) => {
+    setLastVoiceBlob(audio);
+    setIsTyping(true);
+    try {
+      const result = await submitVoiceQuery(audio);
+
+      const userMsg: Message = {
+        id: Date.now().toString(),
+        role: "user",
+        content: result.query,
+      };
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: result.response,
+        schemes: result.recommended_schemes,
+      };
+      setMessages((prev) => [...prev, userMsg, aiMsg]);
+      setLastVoiceBlob(null);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          content: "Voice query failed. Please try again or type your question.",
+        },
+      ]);
+      setVoiceState("error");
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -112,6 +165,7 @@ const Assistant = () => {
                   <ChatMessage role={msg.role} content={msg.content} />
                   {msg.schemes && (
                     <div className="mt-3 space-y-3 pl-0 md:pl-4">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cited schemes</p>
                       {msg.schemes.map((s, i) => (
                         <SchemeCard key={s.id} scheme={s} index={i} />
                       ))}
@@ -127,7 +181,7 @@ const Assistant = () => {
           {/* Input */}
           <div className="border-t bg-card p-4">
             <div className="mx-auto flex max-w-2xl items-center gap-3">
-              <VoiceRecorder onTranscript={(t) => sendMessage(t)} />
+              <VoiceRecorder onAudioRecorded={handleVoiceMessage} onUploadStateChange={setVoiceState} />
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -142,6 +196,23 @@ const Assistant = () => {
               >
                 <Send size={16} />
               </button>
+            </div>
+            <div className="mx-auto mt-2 flex max-w-2xl items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {voiceState === "recording" && "Recording voice..."}
+                {voiceState === "uploading" && "Uploading voice query..."}
+                {voiceState === "error" && "Voice upload failed."}
+                {voiceState === "idle" && ""}
+              </span>
+              {voiceState === "error" && lastVoiceBlob && (
+                <button
+                  type="button"
+                  onClick={() => void handleVoiceMessage(lastVoiceBlob)}
+                  className="rounded border px-2 py-1 hover:bg-muted"
+                >
+                  Retry Voice Upload
+                </button>
+              )}
             </div>
           </div>
         </main>

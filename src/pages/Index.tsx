@@ -4,6 +4,7 @@ import { ArrowRight, Brain, Mic, ClipboardCheck, Globe, Sparkles } from "lucide-
 import { useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { isAuthenticated } from "@/lib/auth";
 
 const features = [
   {
@@ -53,6 +54,7 @@ const fadeUp = {
 };
 
 const Index = () => {
+  const authed = isAuthenticated();
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -62,8 +64,9 @@ const Index = () => {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
+      <main className="flex-1">
 
       {/* Hero */}
       <section ref={heroRef} className="grain-overlay relative overflow-hidden py-28 lg:py-40">
@@ -128,14 +131,14 @@ const Index = () => {
               className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row"
             >
               <Link
-                to="/assistant"
+                to={authed ? "/assistant" : "/auth"}
                 className="group inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-sm font-semibold text-primary-foreground shadow-elevated transition-all duration-300 hover:scale-[1.02] hover:shadow-glow"
               >
                 Start Assistant
                 <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
               <Link
-                to="/eligibility"
+                to={authed ? "/eligibility" : "/auth"}
                 className="inline-flex items-center gap-2 rounded-xl border bg-card/60 px-8 py-4 text-sm font-semibold text-foreground backdrop-blur-sm transition-all duration-300 hover:bg-card hover:shadow-card"
               >
                 Check Eligibility
@@ -224,7 +227,7 @@ const Index = () => {
             {exampleQueries.map((q) => (
               <motion.div key={q} variants={fadeUp}>
                 <Link
-                  to="/assistant"
+                  to={authed ? "/assistant" : "/auth"}
                   className="group flex items-center gap-4 rounded-xl border bg-card px-6 py-5 text-sm text-foreground transition-all duration-300 hover:bg-card/80 hover:shadow-card"
                 >
                   <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-accent/12">
@@ -238,6 +241,7 @@ const Index = () => {
           </motion.div>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

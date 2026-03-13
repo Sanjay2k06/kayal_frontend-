@@ -1,25 +1,33 @@
 import { motion } from "framer-motion";
-import { ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { ExternalLink, ChevronDown, ChevronUp, Bookmark } from "lucide-react";
 import { useState } from "react";
 
 export interface Scheme {
   id: string;
   name: string;
+  description?: string;
   eligibility: string;
   benefits: string;
-  documents: string[];
+  documents?: string[];
   applyLink: string;
   matchScore?: number;
   category?: string;
   incomeGroup?: string;
+  state?: string;
+  officialDepartment?: string;
+  applicationMode?: string;
+  guidance?: string;
+  helpline?: string;
 }
 
 interface SchemeCardProps {
   scheme: Scheme;
   index?: number;
+  isBookmarked?: boolean;
+  onToggleBookmark?: (schemeId: string) => void;
 }
 
-const SchemeCard = ({ scheme, index = 0 }: SchemeCardProps) => {
+const SchemeCard = ({ scheme, index = 0, isBookmarked, onToggleBookmark }: SchemeCardProps) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -49,9 +57,24 @@ const SchemeCard = ({ scheme, index = 0 }: SchemeCardProps) => {
               <span className="mt-1 text-[10px] text-muted-foreground">Match</span>
             </div>
           )}
+          {onToggleBookmark && (
+            <button
+              type="button"
+              onClick={() => onToggleBookmark(scheme.id)}
+              className="rounded-md p-2 text-muted-foreground hover:bg-muted"
+              title="Toggle bookmark"
+            >
+              <Bookmark size={16} className={isBookmarked ? "fill-accent text-accent" : "text-muted-foreground"} />
+            </button>
+          )}
         </div>
 
         <p className="mt-3 text-sm leading-relaxed text-foreground/80">{scheme.benefits}</p>
+        {scheme.officialDepartment && (
+          <p className="mt-2 text-xs uppercase tracking-wider text-muted-foreground">
+            {scheme.officialDepartment} • {scheme.applicationMode || "Official application"}
+          </p>
+        )}
 
         <button
           onClick={() => setExpanded(!expanded)}
@@ -68,6 +91,14 @@ const SchemeCard = ({ scheme, index = 0 }: SchemeCardProps) => {
           animate={{ height: "auto" }}
           className="border-t bg-background/30 px-5 pb-5 pt-4"
         >
+          {scheme.description && (
+            <div className="mb-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Overview
+              </h4>
+              <p className="mt-1 text-sm text-foreground/80">{scheme.description}</p>
+            </div>
+          )}
           <div className="mb-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Eligibility
@@ -78,14 +109,38 @@ const SchemeCard = ({ scheme, index = 0 }: SchemeCardProps) => {
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Required Documents
             </h4>
-            <ul className="mt-1 space-y-1">
-              {scheme.documents.map((doc) => (
-                <li key={doc} className="text-sm text-foreground/80">
-                  &mdash; {doc}
-                </li>
-              ))}
-            </ul>
+            {scheme.documents && scheme.documents.length > 0 ? (
+              <ul className="mt-1 space-y-1">
+                {scheme.documents.map((doc) => (
+                  <li key={doc} className="text-sm text-foreground/80">
+                    &mdash; {doc}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-sm text-foreground/70">Check official portal for document list.</p>
+            )}
           </div>
+          {(scheme.guidance || scheme.helpline) && (
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              {scheme.guidance && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Guidance
+                  </h4>
+                  <p className="mt-1 text-sm text-foreground/80">{scheme.guidance}</p>
+                </div>
+              )}
+              {scheme.helpline && (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Helpline
+                  </h4>
+                  <p className="mt-1 text-sm text-foreground/80">{scheme.helpline}</p>
+                </div>
+              )}
+            </div>
+          )}
           <a
             href={scheme.applyLink}
             target="_blank"

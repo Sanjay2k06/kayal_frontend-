@@ -1,73 +1,193 @@
-# Welcome to your Lovable project
+# CiviX
 
-## Project info
+CiviX includes a React frontend and a FastAPI backend (MongoDB + Gemini + RAG).
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## What is implemented
 
-## How can I edit this code?
+- Auth flow with register, login, refresh token, logout, and protected routes
+- Multi-step onboarding flow after signup/login for profile capture
+- Eligibility engine with profile-based scoring and ranked schemes
+- AI assistant with RAG over scheme dataset + Gemini response generation
+- Voice query endpoint integration support
+- Scheme explorer with search, filters, pagination, and bookmarks
+- Dashboard with profile summary, suggested schemes, and saved schemes
+- Admin panel with scheme CRUD, search, filters, pagination, and inline update
+- State-wise official data import pipeline for gradual replacement of synthetic data
+- Dataset pipeline supporting large scheme generation and MongoDB ingestion
 
-There are several ways of editing your application.
+## Who are the users
 
-**Use Lovable**
+- Citizens (students, employees, women, men, senior citizens, farmers, job seekers)
+- Government welfare applicants looking for eligibility guidance
+- Administrators managing schemes and quality of records
+- Project evaluators/researchers analyzing public welfare discovery systems
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## How the system is used
 
-Changes made via Lovable will be committed automatically to this repo.
+1. Open home page
+2. Signup/login with name, email, and password
+3. Complete onboarding profile form
+4. View eligibility-based suggested schemes
+5. Explore schemes, bookmark relevant ones, and open official links
+6. Use AI assistant chat for guided recommendations
+7. Admin users can manage scheme records and monitor stats
 
-**Use your preferred IDE**
+## Features applied
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Authentication and role-based access
+- Multi-step onboarding
+- Profile persistence
+- Eligibility matching
+- Semantic search + RAG
+- Assistant with strict recommendation format
+- Bookmarking and history
+- Admin CRUD and analytics
+- Official source import pipeline
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Future additions
 
-Follow these steps:
+- Direct integration with authenticated state/central government APIs and portals
+- Scheduled state-wise sync jobs and automated source freshness checks
+- Multilingual UI + model responses by locale preference
+- Explainable eligibility scoring with rule breakdowns
+- Notification system for deadline/eligibility updates
+- Mobile app and offline-first mode for low-connectivity regions
+- Audit trail and moderation workflow for admin changes
+
+## Tech stack
+
+- Frontend: React, TypeScript, Vite, Tailwind CSS, Framer Motion, React Router
+- Backend: FastAPI, Pydantic, Motor
+- Database: MongoDB
+- AI: Gemini API + retrieval-augmented generation
+- Security: JWT access/refresh, bcrypt, token revocation
+- Tooling: pandas dataset scripts, smoke API checks
+
+## Prerequisites
+
+- Node.js 18+
+- npm
+- Python 3.11+
+- MongoDB running locally or remotely
+
+## Backend setup
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
 ```
 
-**Edit a file directly in GitHub**
+Set values in `.env`:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- `MONGODB_URI`
+- `MONGODB_DB`
+- `JWT_SECRET_KEY`
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL` (default: `gemini-2.0-flash`)
+- `GEMINI_QUOTA_COOLDOWN_SECONDS` (temporarily skip quota-blocked models)
+- `CORS_ORIGINS`
 
-**Use GitHub Codespaces**
+## Commands for another system (fresh machine)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Windows
 
-## What technologies are used for this project?
+```sh
+git clone <your-repo-url>
+cd scheme-navigator
+npm install
 
-This project is built with:
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+copy .env.example .env
+```
 
-## How can I deploy this project?
+Update `.env` values (`MONGODB_URI`, `JWT_SECRET_KEY`, `GEMINI_API_KEY`).
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Generate and load dataset:
 
-## Can I connect a custom domain to my Lovable project?
+```sh
+python scripts/generate_dataset.py
+python scripts/load_schemes.py
+```
 
-Yes, you can!
+Run backend + frontend:
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```sh
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+In another terminal:
+
+```sh
+npm run dev -- --host 127.0.0.1 --port 8080
+```
+
+Or use single command:
+
+```sh
+npm run dev:stack
+```
+
+## Dataset pipeline
+
+```sh
+python scripts/generate_dataset.py
+python scripts/load_schemes.py
+```
+
+## Official state-wise import (gradual replacement)
+
+1. Fill `data/official_sources/state_sources.csv` with verified state records
+2. Import one state at a time:
+
+```sh
+python scripts/import_official_state_sources.py --state Maharashtra --replace-generated
+```
+
+3. Repeat for each state
+
+## One-command dev run (frontend + backend)
+
+```sh
+npm install
+npm run dev:stack
+```
+
+This starts:
+
+- Backend at `http://localhost:8000`
+- Frontend at `http://localhost:8080`
+
+## Available scripts
+
+- `npm run dev` - frontend only (Vite)
+- `npm run dev:stack` - frontend + backend together
+- `npm run smoke:api` - run backend endpoint smoke checks
+- `npm run build` - frontend production build
+- `npm run preview` - frontend preview
+- `npm run lint` - frontend lint
+- `npm run test` - frontend tests
+
+## API docs
+
+- Swagger UI: `http://localhost:8000/docs`
+- Gemini diagnostics (auth required): `GET /chat/diagnostics`
+
+## Endpoint verification
+
+With backend running, execute:
+
+```sh
+npm run smoke:api
+```
+
+This validates root, auth, schemes, eligibility, chat, admin protection, and voice endpoint request validation.
+
+## Final year project docs
+
+- PPT content: `docs/ppt-content.md`
+- Detailed project report content: `docs/final-year-project-content.md`

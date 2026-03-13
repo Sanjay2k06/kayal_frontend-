@@ -2,13 +2,17 @@ import { Mic, Square } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 interface VoiceRecorderProps {
-  onTranscript: (text: string) => void;
+  onAudioRecorded: (audioBlob: Blob) => void | Promise<void>;
+  onUploadStateChange?: (state: "idle" | "recording" | "uploading" | "error") => void;
 }
 
-const VoiceRecorder = ({ onTranscript }: VoiceRecorderProps) => {
+const VoiceRecorder = ({ onAudioRecorded, onUploadStateChange }: VoiceRecorderProps) => {
   const [recording, setRecording] = useState(false);
   const [bars, setBars] = useState<number[]>(Array(12).fill(4));
+  const [busy, setBusy] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
 
   useEffect(() => {
     if (recording) {
@@ -22,13 +26,52 @@ const VoiceRecorder = ({ onTranscript }: VoiceRecorderProps) => {
     return () => clearInterval(intervalRef.current);
   }, [recording]);
 
-  const toggle = () => {
+  const startRecording = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = recorder;
+    chunksRef.current = [];
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunksRef.current.push(event.data);
+    };
+
+    recorder.onstop = async () => {
+      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      stream.getTracks().forEach((track) => track.stop());
+      setBusy(true);
+      onUploadStateChange?.("uploading");
+      try {
+        await onAudioRecorded(blob);
+        onUploadStateChange?.("idle");
+      } catch {
+        onUploadStateChange?.("error");
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    recorder.start();
+    setRecording(true);
+    onUploadStateChange?.("recording");
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setRecording(false);
+  };
+
+  const toggle = async () => {
     if (recording) {
-      setRecording(false);
-      // Simulate transcript
-      onTranscript("What government schemes am I eligible for as a farmer in Maharashtra?");
+      stopRecording();
     } else {
-      setRecording(true);
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        onUploadStateChange?.("error");
+        return;
+      }
+      await startRecording();
     }
   };
 
@@ -47,11 +90,12 @@ const VoiceRecorder = ({ onTranscript }: VoiceRecorderProps) => {
       )}
       <button
         onClick={toggle}
+        disabled={busy}
         className={`relative flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
           recording
             ? "bg-destructive text-destructive-foreground"
             : "bg-accent text-accent-foreground hover:bg-accent/80"
-        }`}
+        } disabled:opacity-50`}
       >
         {recording && (
           <span className="absolute inset-0 animate-pulse-ring rounded-full bg-destructive/40" />

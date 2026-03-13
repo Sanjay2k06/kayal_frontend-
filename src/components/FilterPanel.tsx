@@ -4,10 +4,10 @@ interface FilterPanelProps {
 }
 
 const options: Record<string, string[]> = {
-  category: ["All", "Agriculture", "Education", "Health", "Housing", "Employment"],
-  incomeGroup: ["All", "Below Poverty Line", "Low Income", "Middle Income"],
-  gender: ["All", "Male", "Female", "Other"],
-  state: ["All", "Maharashtra", "Karnataka", "Tamil Nadu", "Uttar Pradesh", "Delhi"],
+  category: ["All", "Agriculture", "Education", "Healthcare", "Housing", "Employment", "Women Empowerment", "Social Welfare"],
+  incomeGroup: ["All", "Below 1 Lakh", "1 - 3 Lakh", "3 - 6 Lakh", "6 - 10 Lakh", "Above 10 Lakh"],
+  occupation: ["All", "Student", "Employee", "Farmer", "Self-employed", "Job seeker", "Homemaker", "Senior Citizen"],
+  state: ["All", "Maharashtra", "Karnataka", "Tamil Nadu", "Uttar Pradesh", "Delhi", "Gujarat", "Telangana", "West Bengal"],
 };
 
 const FilterPanel = ({ filters, onChange }: FilterPanelProps) => (

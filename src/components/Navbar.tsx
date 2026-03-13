@@ -2,23 +2,42 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const navItems = [
-  { label: "Home", path: "/" },
-  { label: "Assistant", path: "/assistant" },
-  { label: "Eligibility", path: "/eligibility" },
-  { label: "Schemes", path: "/schemes" },
-  { label: "Dashboard", path: "/dashboard" },
-];
+import { clearSession, getSessionUser, isAuthenticated } from "@/lib/auth";
+import { logoutUser } from "@/lib/api";
 
 const Navbar = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [authed, setAuthed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
   const [blobStyle, setBlobStyle] = useState<React.CSSProperties>({});
   const navRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
+  const navItems = [
+    { label: "Home", path: "/" },
+    ...(authed
+      ? [
+          { label: "Assistant", path: "/assistant" },
+          { label: "Eligibility", path: "/eligibility" },
+          { label: "Schemes", path: "/schemes" },
+          { label: "Compare", path: "/schemes/compare" },
+          { label: "Profile", path: "/profile" },
+          { label: "Dashboard", path: "/dashboard" },
+          ...(isAdmin ? [{ label: "Admin", path: "/admin" }] : []),
+        ]
+      : []),
+  ];
+
   // Update gooey blob position
+  useEffect(() => {
+    setAuthed(isAuthenticated());
+    const sessionUser = getSessionUser();
+    setEmail(sessionUser?.email || null);
+    setIsAdmin(Boolean(sessionUser?.is_admin));
+  }, [location.pathname]);
+
   useEffect(() => {
     const activeIndex = navItems.findIndex((item) => item.path === location.pathname);
     const el = itemRefs.current[activeIndex];
@@ -106,12 +125,35 @@ const Navbar = () => {
           </div>
 
           {/* CTA button */}
-          <Link
-            to="/assistant"
-            className="hidden rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition-all duration-300 hover:shadow-elevated md:inline-flex"
-          >
-            Start Assistant
-          </Link>
+          <div className="hidden items-center gap-2 md:flex">
+            {authed ? (
+              <>
+                <span className="text-xs text-muted-foreground">{email}</span>
+                <button
+                  onClick={async () => {
+                    try {
+                      await logoutUser();
+                    } catch {
+                      clearSession();
+                    }
+                    setAuthed(false);
+                    setIsAdmin(false);
+                    setEmail(null);
+                  }}
+                  className="rounded-lg border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/auth"
+                className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition-all duration-300 hover:shadow-elevated"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
 
           {/* Mobile toggle */}
           <button
