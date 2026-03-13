@@ -4,6 +4,44 @@ from app.services.scheme_service import SchemeService
 
 
 class EligibilityService:
+    _PAN_INDIA_STATES = {"all", "india", "pan india", "pan-india", "nationwide", "national"}
+
+    @staticmethod
+    def _normalize_text(value: str) -> str:
+        cleaned = "".join(ch.lower() if ch.isalnum() else " " for ch in value)
+        return " ".join(cleaned.split())
+
+    @staticmethod
+    def _normalize_state(value: str) -> str:
+        normalized = EligibilityService._normalize_text(value)
+        aliases = {
+            "tamilnadu": "tamil nadu",
+            "andhrapradesh": "andhra pradesh",
+            "madhyapradesh": "madhya pradesh",
+            "uttarpradesh": "uttar pradesh",
+            "westbengal": "west bengal",
+            "jammuandkashmir": "jammu and kashmir",
+        }
+        collapsed = normalized.replace(" ", "")
+        return aliases.get(collapsed, normalized)
+
+    @staticmethod
+    def _is_pan_india_state(scheme_state: str) -> bool:
+        normalized_state = EligibilityService._normalize_state(scheme_state)
+        return normalized_state in EligibilityService._PAN_INDIA_STATES
+
+    @staticmethod
+    def _state_matches(profile_state: str, scheme_state: str) -> bool:
+        normalized_profile_state = EligibilityService._normalize_state(profile_state)
+        normalized_scheme_state = EligibilityService._normalize_state(scheme_state)
+        if not normalized_profile_state or not normalized_scheme_state:
+            return False
+        return (
+            normalized_profile_state == normalized_scheme_state
+            or normalized_profile_state in normalized_scheme_state
+            or normalized_scheme_state in normalized_profile_state
+        )
+
     @staticmethod
     def _income_bucket(income: float) -> str:
         if income < 100000:
@@ -31,7 +69,7 @@ class EligibilityService:
 
         if occupation in eligibility_text:
             score += 30
-        if state in scheme["state"].lower() or scheme["state"].lower() in ["all", "india", "pan india"]:
+        if EligibilityService._state_matches(state, scheme["state"]) or EligibilityService._is_pan_india_state(scheme["state"]):
             score += 20
         if gender in eligibility_text:
             score += 10
@@ -72,7 +110,10 @@ class EligibilityService:
 
         checks: list[tuple[str, bool]] = [
             ("Occupation aligned with scheme criteria", profile["occupation"].lower() in eligibility_text),
-            ("State eligibility aligned", profile["state"].lower() in scheme["state"].lower() or scheme["state"].lower() in ["all", "india", "pan india"]),
+            (
+                "State eligibility aligned",
+                EligibilityService._state_matches(profile["state"], scheme["state"]) or EligibilityService._is_pan_india_state(scheme["state"]),
+            ),
             ("Income fit appears eligible", EligibilityService._income_bucket(profile["income"]) in eligibility_text),
             ("Gender condition appears supported", profile["gender"].lower() in eligibility_text if profile.get("gender") else False),
         ]
@@ -143,8 +184,18 @@ class EligibilityService:
         schemes_payload = await SchemeService.list_schemes(page=1, limit=5000, category=None, state=None, search=None)
         schemes = schemes_payload["items"]
 
+        profile_state = str(profile.get("state", "")).strip()
+        state_aligned_schemes = [
+            scheme
+            for scheme in schemes
+            if EligibilityService._state_matches(profile_state, str(scheme.get("state", "")))
+            or EligibilityService._is_pan_india_state(str(scheme.get("state", "")))
+        ]
+
+        candidate_schemes = state_aligned_schemes if state_aligned_schemes else schemes
+
         ranked = []
-        for scheme in schemes:
+        for scheme in candidate_schemes:
             match_score = round(EligibilityService._score_scheme(scheme, profile), 2)
             why_matched, why_not_matched, confidence = EligibilityService._explain_scheme(scheme, profile, match_score)
             scheme_with_score = {
