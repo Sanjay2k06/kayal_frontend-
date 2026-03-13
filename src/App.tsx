@@ -18,32 +18,37 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminRoute from "@/components/AdminRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import OfflineBanner from "@/components/OfflineBanner";
+import WhatsAppChatButton from "@/components/WhatsAppChatButton";
+import { UIPreferencesProvider } from "@/lib/ui-preferences";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <OfflineBanner />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/assistant" element={<ProtectedRoute><Assistant /></ProtectedRoute>} />
-            <Route path="/eligibility" element={<ProtectedRoute><EligibilityChecker /></ProtectedRoute>} />
-            <Route path="/schemes" element={<ProtectedRoute><SchemeExplorer /></ProtectedRoute>} />
-            <Route path="/schemes/compare" element={<ProtectedRoute><SchemeCompare /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/onboarding" element={<ProtectedRoute requireCompleteProfile={false}><Onboarding /></ProtectedRoute>} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <UIPreferencesProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <OfflineBanner />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/assistant" element={<ProtectedRoute><Assistant /></ProtectedRoute>} />
+              <Route path="/eligibility" element={<ProtectedRoute><EligibilityChecker /></ProtectedRoute>} />
+              <Route path="/schemes" element={<ProtectedRoute><SchemeExplorer /></ProtectedRoute>} />
+              <Route path="/schemes/compare" element={<ProtectedRoute><SchemeCompare /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/onboarding" element={<ProtectedRoute requireCompleteProfile={false}><Onboarding /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <WhatsAppChatButton />
+          </BrowserRouter>
+        </TooltipProvider>
+      </UIPreferencesProvider>
     </QueryClientProvider>
   </ErrorBoundary>
 );

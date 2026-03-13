@@ -11,6 +11,7 @@ from app.api.chat import router as chat_router
 from app.api.eligibility import router as eligibility_router
 from app.api.schemes import router as schemes_router
 from app.api.user import router as user_router
+from app.api.whatsapp import router as whatsapp_router
 from app.api.voice import router as voice_router
 from app.config import get_settings
 from app.database.db import close_db, connect_db
@@ -39,6 +40,7 @@ app.include_router(schemes_router)
 app.include_router(eligibility_router)
 app.include_router(voice_router)
 app.include_router(user_router)
+app.include_router(whatsapp_router)
 app.include_router(admin_router)
 
 

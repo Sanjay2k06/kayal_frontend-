@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:stack": "python scripts/dev_runner.py",
+    "dev:whatsapp": "python scripts/whatsapp_dev_runner.py",
     "smoke:api": "python scripts/smoke_test_api.py",
     "import:official": "python scripts/import_official_state_sources.py",
     "build": "vite build",

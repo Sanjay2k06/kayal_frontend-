@@ -52,6 +52,20 @@
     --shadow-elevated: 0 12px 48px -12px hsl(34 30% 53% / 0.22);
     --shadow-glow: 0 0 60px -15px hsl(34 30% 53% / 0.3);
   }
+
+  .high-contrast {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 5%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 5%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 12%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 80%;
+    --ring: 0 0% 10%;
+  }
 }
 
 @layer base {

@@ -32,7 +32,10 @@ def main() -> None:
         assert_status(res, {200}, "root")
 
         print("[2/9] POST /auth/register")
-        res = client.post(f"{BASE_URL}/auth/register", json={"email": email, "password": password})
+        res = client.post(
+            f"{BASE_URL}/auth/register",
+            json={"name": "Smoke Tester", "email": email, "password": password},
+        )
         assert_status(res, {200}, "register")
 
         print("[3/9] POST /auth/login")

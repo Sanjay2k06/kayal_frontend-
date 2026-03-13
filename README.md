@@ -177,6 +177,23 @@ This starts:
 - Swagger UI: `http://localhost:8000/docs`
 - Gemini diagnostics (auth required): `GET /chat/diagnostics`
 
+## WhatsApp bot setup (Twilio)
+
+1. Set WhatsApp/Twilio values in `.env`:
+	- `TWILIO_ACCOUNT_SID`
+	- `TWILIO_AUTH_TOKEN`
+	- `TWILIO_WHATSAPP_FROM` (example: `whatsapp:+14155238886`)
+	- `TWILIO_WHATSAPP_TO_DEFAULT` (example: `whatsapp:+917200809026`)
+	- `VITE_WHATSAPP_BOT_NUMBER` (website chat button number)
+2. In Twilio WhatsApp sandbox, configure incoming webhook URL:
+	- `POST https://<your-public-domain>/whatsapp/webhook`
+3. Website now shows a floating button to open WhatsApp chat with bot.
+4. Bot collects user inputs step-by-step and returns top matching schemes.
+5. Health endpoint:
+	- `GET /whatsapp/health`
+6. One-command launcher for backend + ngrok:
+	- `npm run dev:whatsapp`
+
 ## Endpoint verification
 
 With backend running, execute:

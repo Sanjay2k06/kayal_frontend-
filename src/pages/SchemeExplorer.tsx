@@ -19,6 +19,8 @@ const SchemeExplorer = () => {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,6 +46,7 @@ const SchemeExplorer = () => {
     const timeout = setTimeout(async () => {
       if (!hasMore && page > 1) return;
       setLoading(true);
+      setErrorMessage("");
       try {
         const result = await getSchemes({
           page,
@@ -65,6 +68,7 @@ const SchemeExplorer = () => {
         setHasMore(page * 24 < result.total);
       } catch {
         if (page === 1) setSchemes([]);
+        setErrorMessage("Unable to load schemes right now. Please retry.");
       } finally {
         setLoading(false);
       }
@@ -86,6 +90,22 @@ const SchemeExplorer = () => {
     observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
   }, [loading, hasMore]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (schemes.length === 0) return;
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setFocusedIndex((prev) => Math.min(schemes.length - 1, prev + 1));
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setFocusedIndex((prev) => Math.max(0, prev - 1));
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [schemes.length]);
 
   const suggestions = useMemo(() => {
     if (!search.trim()) return [];
@@ -154,6 +174,11 @@ const SchemeExplorer = () => {
         </div>
 
         <div className="mt-8 space-y-4">
+          {errorMessage && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive" role="alert">
+              {errorMessage}
+            </div>
+          )}
           {loading && page === 1 ? (
             <div className="rounded-lg border border-dashed bg-card/50 p-12 text-center">
               <p className="text-sm text-muted-foreground">Loading schemes...</p>
@@ -178,12 +203,13 @@ const SchemeExplorer = () => {
                     isBookmarked={bookmarkedIds.has(s.id)}
                     onToggleBookmark={toggleBookmark}
                   />
+                  {focusedIndex === i && <div className="sr-only" aria-live="polite">Focused scheme {s.name}</div>}
                 </div>
               );
             })
           ) : (
             <div className="rounded-lg border border-dashed bg-card/50 p-12 text-center">
-              <p className="text-sm text-muted-foreground">No schemes match your current filters.</p>
+              <p className="text-sm text-muted-foreground">No schemes match your filters. Try clearing category/state or broadening your search terms.</p>
             </div>
           )}
           <div ref={loadMoreRef} />

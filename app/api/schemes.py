@@ -9,7 +9,7 @@ router = APIRouter(tags=["schemes"])
 @router.get("/schemes", response_model=SchemeListOut)
 async def list_schemes(
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=20, ge=1, le=50),
     category: str | None = None,
     state: str | None = None,
     search: str | None = None,

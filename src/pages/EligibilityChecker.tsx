@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SchemeCard, { Scheme } from "@/components/SchemeCard";
-import { checkEligibility, getMyProfile, updateMyProfile } from "@/lib/api";
+import { checkEligibility, getMyProfile, runHeroSimulation, updateMyProfile } from "@/lib/api";
 import { getSessionUser, isAuthenticated } from "@/lib/auth";
 
 interface FormData {
@@ -65,6 +65,22 @@ const EligibilityChecker = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [profileMessage, setProfileMessage] = useState<string>("");
+  const [heroIncome, setHeroIncome] = useState<string>("");
+  const [heroState, setHeroState] = useState<string>("");
+  const [heroLoading, setHeroLoading] = useState(false);
+  const [heroError, setHeroError] = useState("");
+  const [heroResult, setHeroResult] = useState<{
+    summary: string;
+    simulated_top_schemes: Array<{
+      scheme: Scheme;
+      base_score: number;
+      simulated_score: number;
+      score_delta: number;
+      success_probability: number;
+      missing_documents: string[];
+      action_plan: string[];
+    }>;
+  } | null>(null);
 
   const update = (key: keyof FormData, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -154,6 +170,106 @@ const EligibilityChecker = () => {
       setError(err instanceof Error ? err.message : "Unable to check eligibility right now.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runDemoStory = async () => {
+    const demoForm: FormData = {
+      age: "28",
+      gender: "Female",
+      occupation: "Student",
+      income: "200000",
+      state: "Maharashtra",
+      district: "Pune",
+      educationLevel: "Graduate",
+      socialCategory: "OBC",
+      residenceType: "Urban",
+      maritalStatus: "Single",
+      disabilityStatus: "no",
+      minorityStatus: "no",
+    };
+
+    setForm(demoForm);
+    setHeroIncome("75000");
+    setHeroState("Maharashtra");
+    setLoading(true);
+    setHeroLoading(true);
+    setError("");
+    setHeroError("");
+    setProfileMessage("Demo story is running with a sample student profile.");
+
+    const baselineProfile = {
+      age: Number(demoForm.age),
+      gender: demoForm.gender,
+      occupation: demoForm.occupation,
+      income: Number(demoForm.income),
+      state: demoForm.state,
+      district: demoForm.district,
+      education_level: demoForm.educationLevel,
+      social_category: demoForm.socialCategory,
+      residence_type: demoForm.residenceType,
+      marital_status: demoForm.maritalStatus,
+      disability_status: demoForm.disabilityStatus,
+      minority_status: demoForm.minorityStatus,
+    };
+
+    const whatIfProfile = {
+      ...baselineProfile,
+      income: 75000,
+      state: "Maharashtra",
+    };
+
+    try {
+      const [schemes, hero] = await Promise.all([
+        checkEligibility(baselineProfile),
+        runHeroSimulation({ profile: baselineProfile, what_if: whatIfProfile }),
+      ]);
+
+      setResults(schemes);
+      setSubmitted(true);
+      setHeroResult({ summary: hero.summary, simulated_top_schemes: hero.simulated_top_schemes });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to run demo story.");
+      setHeroError("Hero simulation failed for demo story.");
+    } finally {
+      setLoading(false);
+      setHeroLoading(false);
+    }
+  };
+
+  const runHeroFlow = async () => {
+    setHeroLoading(true);
+    setHeroError("");
+    setHeroResult(null);
+
+    const baselineProfile = {
+      age: Number(form.age),
+      gender: form.gender,
+      occupation: form.occupation,
+      income: Number(form.income) || 0,
+      state: form.state,
+      district: form.district,
+      education_level: form.educationLevel,
+      social_category: form.socialCategory,
+      residence_type: form.residenceType,
+      marital_status: form.maritalStatus,
+      disability_status: form.disabilityStatus,
+      minority_status: form.minorityStatus,
+    };
+
+    const whatIfProfile = {
+      ...baselineProfile,
+      income: Number(heroIncome) || baselineProfile.income,
+      state: heroState || baselineProfile.state,
+    };
+
+    try {
+      const data = await runHeroSimulation({ profile: baselineProfile, what_if: whatIfProfile });
+      setHeroResult({ summary: data.summary, simulated_top_schemes: data.simulated_top_schemes });
+    } catch (err) {
+      setHeroError(err instanceof Error ? err.message : "Unable to run hero simulation.");
+    } finally {
+      setHeroLoading(false);
     }
   };
 
@@ -335,6 +451,90 @@ const EligibilityChecker = () => {
                       <SchemeCard scheme={s} index={i} />
                     </div>
                   ))}
+
+                <div className="mt-8 rounded-lg border border-border/60 bg-card p-5">
+                  <h3 className="font-display text-lg font-semibold text-foreground">Hero Feature: What-if + Success Predictor + Action Plan</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Simulate profile changes and see which schemes improve, your estimated success probability, and next-best actions.
+                  </p>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className={labelClass}>What-if Income (optional)</label>
+                      <select value={heroIncome} onChange={(e) => setHeroIncome(e.target.value)} className={selectClass}>
+                        <option value="">Use current</option>
+                        {incomeRanges.map((range) => (
+                          <option key={`hero-${range.label}`} value={range.value}>{range.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>What-if State (optional)</label>
+                      <select value={heroState} onChange={(e) => setHeroState(e.target.value)} className={selectClass}>
+                        <option value="">Use current</option>
+                        {states.map((state) => (
+                          <option key={`hero-${state}`}>{state}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void runHeroFlow()}
+                    disabled={heroLoading || !form.age || !form.gender || !form.occupation || !form.income || !form.state}
+                    className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
+                  >
+                    {heroLoading ? "Running Hero Simulation..." : "Run Hero Simulation"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runDemoStory()}
+                    disabled={heroLoading || loading}
+                    className="ml-2 mt-4 rounded-md border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+                  >
+                    Run Demo Story (1-click)
+                  </button>
+
+                  {heroError && <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{heroError}</div>}
+
+                  {heroResult && (
+                    <div className="mt-4 space-y-4">
+                      <div className="rounded-md border border-accent/30 bg-accent/5 px-3 py-2 text-sm text-foreground/90">{heroResult.summary}</div>
+                      {heroResult.simulated_top_schemes.map((rec) => (
+                        <div key={`hero-${rec.scheme.id}`} className="rounded-md border bg-background/60 p-4">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span>Base: {rec.base_score}%</span>
+                            <span>Simulated: {rec.simulated_score}%</span>
+                            <span className={rec.score_delta >= 0 ? "text-green-700" : "text-destructive"}>Delta: {rec.score_delta >= 0 ? "+" : ""}{rec.score_delta}%</span>
+                            <span className="font-semibold text-foreground/80">Success: {rec.success_probability}%</span>
+                          </div>
+                          <div className="mt-2">
+                            <SchemeCard scheme={rec.scheme} />
+                          </div>
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Documents missing</p>
+                              {rec.missing_documents.length > 0 ? (
+                                <ul className="mt-1 space-y-1 text-sm text-foreground/80">
+                                  {rec.missing_documents.map((doc) => <li key={doc}>- {doc}</li>)}
+                                </ul>
+                              ) : (
+                                <p className="mt-1 text-sm text-foreground/80">No major document gaps detected.</p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Action plan</p>
+                              <ol className="mt-1 space-y-1 text-sm text-foreground/80">
+                                {rec.action_plan.map((step) => <li key={step}>- {step}</li>)}
+                              </ol>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="flex h-full items-center justify-center rounded-lg border border-dashed bg-card/50 p-12">

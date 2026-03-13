@@ -3,11 +3,20 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SearchBar from "@/components/SearchBar";
 import {
+  approveChange,
   adminAddScheme,
   adminDeleteScheme,
   adminUpdateScheme,
+  getAdminWhatsAppStatus,
+  getDataTrustReport,
   getAdminStats,
+  getPendingChanges,
   getSchemes,
+  listAdminJobs,
+  previewSchemeDiff,
+  rejectChange,
+  rollbackScheme,
+  runDataTrustScan,
 } from "@/lib/api";
 import type { Scheme } from "@/components/SchemeCard";
 
@@ -41,6 +50,11 @@ const Admin = () => {
   const [editingForm, setEditingForm] = useState(initialForm);
   const [status, setStatus] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<any[]>([]);
+  const [dataTrust, setDataTrust] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [preview, setPreview] = useState<any>(null);
+  const [whatsAppStatus, setWhatsAppStatus] = useState<any>(null);
 
   const categoryOptions = useMemo(() => Object.keys(stats?.categories || {}).sort(), [stats]);
   const stateOptions = useMemo(() => Object.keys(stats?.states || {}).sort(), [stats]);
@@ -48,7 +62,7 @@ const Admin = () => {
 
   const refreshData = async () => {
     setLoading(true);
-    const [statsData, schemeData] = await Promise.all([
+    const [statsData, schemeData, pendingData, trustData, jobsData, whatsAppData] = await Promise.all([
       getAdminStats(),
       getSchemes({
         page,
@@ -57,10 +71,18 @@ const Admin = () => {
         category: category || undefined,
         state: stateFilter || undefined,
       }),
+      getPendingChanges(),
+      getDataTrustReport(),
+      listAdminJobs(),
+      getAdminWhatsAppStatus(),
     ]);
     setStats(statsData);
     setSchemes(schemeData.items);
     setTotal(schemeData.total);
+    setPendingChanges(pendingData || []);
+    setDataTrust(trustData || []);
+    setJobs(jobsData || []);
+    setWhatsAppStatus(whatsAppData);
     setLoading(false);
   };
 
@@ -101,7 +123,7 @@ const Admin = () => {
     );
     try {
       await adminUpdateScheme(editingSchemeId, payload);
-      setStatus("Scheme updated successfully");
+      setStatus("Update submitted for approval");
       setEditingSchemeId("");
       setEditingForm(initialForm);
       await refreshData();
@@ -121,6 +143,16 @@ const Admin = () => {
       await refreshData();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Failed to delete scheme");
+    }
+  };
+
+  const runTrustScan = async () => {
+    try {
+      await runDataTrustScan();
+      setStatus("Data trust scan started");
+      await refreshData();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Unable to start trust scan");
     }
   };
 
@@ -150,6 +182,15 @@ const Admin = () => {
     setStateFilter("");
   };
 
+  const copyToClipboard = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setStatus(`${label} copied to clipboard`);
+    } catch {
+      setStatus(`Unable to copy ${label.toLowerCase()}`);
+    }
+  };
+
   const formFieldClass = "w-full rounded-md border bg-background px-3 py-2 text-sm";
   const textareaClass = `${formFieldClass} min-h-24`;
 
@@ -172,6 +213,62 @@ const Admin = () => {
           <div className="rounded-lg border bg-card p-4">
             <p className="text-xs text-muted-foreground">Loaded Records</p>
             <p className="mt-2 text-2xl font-bold text-foreground">{String(total)}</p>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-lg border bg-card p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="font-display text-lg font-semibold text-foreground">WhatsApp Operations</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Use the live ngrok webhook URL below in Twilio. This updates automatically when ngrok is running locally.</p>
+            </div>
+            <button type="button" onClick={() => void refreshData()} className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">Refresh status</button>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
+            <div className="space-y-3">
+              <div className="rounded-lg border bg-background/70 p-4">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Webhook URL</p>
+                <p className="mt-2 break-all text-sm text-foreground">
+                  {whatsAppStatus?.webhook_url || "ngrok is not running yet. Start it with npm run dev:whatsapp."}
+                </p>
+                {whatsAppStatus?.webhook_url && (
+                  <button
+                    type="button"
+                    onClick={() => void copyToClipboard(whatsAppStatus.webhook_url, "Webhook URL")}
+                    className="mt-3 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+                  >
+                    Copy webhook URL
+                  </button>
+                )}
+              </div>
+
+              <div className="rounded-lg border bg-background/70 p-4">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Health URL</p>
+                <p className="mt-2 break-all text-sm text-foreground">{whatsAppStatus?.health_url || "Unavailable until ngrok exposes the backend."}</p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-background/70 p-4 text-sm">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Twilio config</p>
+                  <p className="mt-1 text-foreground">{whatsAppStatus?.twilio_configured ? "Configured" : "Missing credentials"}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">ngrok</p>
+                  <p className="mt-1 text-foreground">{whatsAppStatus?.ngrok_running ? "Running" : "Not detected"}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">From number</p>
+                  <p className="mt-1 break-all text-foreground">{whatsAppStatus?.from_number || "Not set"}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Default recipient</p>
+                  <p className="mt-1 break-all text-foreground">{whatsAppStatus?.default_to_number || "Not set"}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -268,6 +365,29 @@ const Admin = () => {
                               <textarea value={editingForm.required_documents} onChange={(e) => setEditingForm((prev) => ({ ...prev, required_documents: e.target.value }))} className={textareaClass} placeholder="Required documents, one per line" />
                               <div className="flex gap-2 lg:col-span-2">
                                 <button type="submit" className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">Save changes</button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const payload = Object.fromEntries(
+                                      Object.entries({
+                                        ...editingForm,
+                                        required_documents: editingForm.required_documents
+                                          .split("\n")
+                                          .map((item) => item.trim())
+                                          .filter(Boolean),
+                                      }).filter(([, value]) => (Array.isArray(value) ? value.length > 0 : value))
+                                    );
+                                    try {
+                                      const previewData = await previewSchemeDiff(editingSchemeId, payload);
+                                      setPreview(previewData);
+                                    } catch {
+                                      setPreview(null);
+                                    }
+                                  }}
+                                  className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+                                >
+                                  Preview Diff
+                                </button>
                                 <button type="button" onClick={() => { setEditingSchemeId(""); setEditingForm(initialForm); }} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
                               </div>
                             </form>
@@ -291,6 +411,72 @@ const Admin = () => {
                 <button type="button" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))} className="rounded-md border px-3 py-1.5 disabled:opacity-50">Previous</button>
                 <button type="button" disabled={page >= totalPages} onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} className="rounded-md border px-3 py-1.5 disabled:opacity-50">Next</button>
               </div>
+            </div>
+
+            {preview && (
+              <div className="mt-4 rounded-lg border bg-background/70 p-4 text-xs text-foreground/80">
+                <p className="mb-2 font-semibold uppercase tracking-wider text-muted-foreground">Diff preview</p>
+                <pre className="overflow-x-auto whitespace-pre-wrap">{JSON.stringify(preview.changes, null, 2)}</pre>
+              </div>
+            )}
+
+            <div className="mt-6 grid gap-4 xl:grid-cols-2">
+              <div className="rounded-lg border bg-background/70 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">Pending approvals</h3>
+                </div>
+                <div className="space-y-2">
+                  {pendingChanges.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No pending updates.</p>
+                  ) : (
+                    pendingChanges.slice(0, 8).map((item) => (
+                      <div key={item.id} className="rounded-md border bg-card p-3 text-xs">
+                        <p className="font-semibold text-foreground">{item.scheme_name}</p>
+                        <div className="mt-2 flex gap-2">
+                          <button type="button" onClick={async () => { await approveChange(item.id); await refreshData(); }} className="rounded border px-2 py-1 hover:bg-muted">Approve</button>
+                          <button type="button" onClick={async () => { await rejectChange(item.id); await refreshData(); }} className="rounded border px-2 py-1 hover:bg-muted">Reject</button>
+                          <button type="button" onClick={async () => { await rollbackScheme(item.scheme_id); await refreshData(); }} className="rounded border px-2 py-1 hover:bg-muted">Rollback</button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border bg-background/70 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground">Data trust</h3>
+                  <button type="button" onClick={() => void runTrustScan()} className="rounded border px-2 py-1 text-xs hover:bg-muted">Run scan</button>
+                </div>
+                <div className="space-y-2">
+                  {dataTrust.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No trust report items.</p>
+                  ) : (
+                    dataTrust.slice(0, 8).map((item) => (
+                      <div key={item.scheme_id} className="rounded-md border bg-card p-3 text-xs">
+                        <p className="font-semibold text-foreground">{item.scheme_name}</p>
+                        <p className="mt-1 text-muted-foreground">Link: {item.link_status} • Freshness: {item.source_freshness_status || "unknown"}</p>
+                        {item.duplicate_of && <p className="mt-1 text-destructive">Potential duplicate of {item.duplicate_of}</p>}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-lg border bg-background/70 p-4">
+              <h3 className="mb-2 text-sm font-semibold text-foreground">Background jobs</h3>
+              {jobs.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No jobs yet.</p>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  {jobs.slice(0, 6).map((job) => (
+                    <div key={job.id} className="rounded-md border bg-card p-2">
+                      {job.type} • {job.status}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

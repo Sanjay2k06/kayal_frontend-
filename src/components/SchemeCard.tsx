@@ -18,6 +18,17 @@ export interface Scheme {
   applicationMode?: string;
   guidance?: string;
   helpline?: string;
+  confidenceScore?: number;
+  whyMatched?: string[];
+  whyNotMatched?: string[];
+  sourceName?: string;
+  sourceLastVerifiedAt?: string;
+  sourceFreshnessDays?: number;
+  sourceFreshnessStatus?: string;
+  duplicateOf?: string;
+  linkStatus?: string;
+  approvalStatus?: string;
+  deadline?: string;
 }
 
 interface SchemeCardProps {
@@ -55,6 +66,9 @@ const SchemeCard = ({ scheme, index = 0, isBookmarked, onToggleBookmark }: Schem
                 <span className="text-sm font-bold text-accent">{scheme.matchScore}%</span>
               </div>
               <span className="mt-1 text-[10px] text-muted-foreground">Match</span>
+              {scheme.confidenceScore !== undefined && (
+                <span className="text-[10px] text-muted-foreground">Conf: {Math.round(scheme.confidenceScore)}%</span>
+              )}
             </div>
           )}
           {onToggleBookmark && (
@@ -74,6 +88,16 @@ const SchemeCard = ({ scheme, index = 0, isBookmarked, onToggleBookmark }: Schem
           <p className="mt-2 text-xs uppercase tracking-wider text-muted-foreground">
             {scheme.officialDepartment} • {scheme.applicationMode || "Official application"}
           </p>
+        )}
+        {(scheme.sourceFreshnessStatus || scheme.linkStatus) && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Source: {scheme.sourceName || "Internal"}
+            {scheme.sourceFreshnessStatus ? ` • Freshness: ${scheme.sourceFreshnessStatus}` : ""}
+            {scheme.linkStatus ? ` • Link: ${scheme.linkStatus}` : ""}
+          </p>
+        )}
+        {scheme.deadline && (
+          <p className="mt-2 text-xs font-semibold text-foreground/80">Deadline: {scheme.deadline}</p>
         )}
 
         <button
@@ -139,6 +163,30 @@ const SchemeCard = ({ scheme, index = 0, isBookmarked, onToggleBookmark }: Schem
                   <p className="mt-1 text-sm text-foreground/80">{scheme.helpline}</p>
                 </div>
               )}
+            </div>
+          )}
+          {(scheme.whyMatched?.length || scheme.whyNotMatched?.length) && (
+            <div className="mb-4 grid gap-3 md:grid-cols-2">
+              {scheme.whyMatched?.length ? (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Why matched</h4>
+                  <ul className="mt-1 space-y-1">
+                    {scheme.whyMatched.map((reason) => (
+                      <li key={reason} className="text-sm text-foreground/80">- {reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {scheme.whyNotMatched?.length ? (
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Why not matched</h4>
+                  <ul className="mt-1 space-y-1">
+                    {scheme.whyNotMatched.map((reason) => (
+                      <li key={reason} className="text-sm text-foreground/70">- {reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
           )}
           <a

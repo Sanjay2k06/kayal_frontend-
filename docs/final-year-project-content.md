@@ -132,6 +132,21 @@ Implemented:
 ## 16. Conclusion
 CiviX demonstrates a practical and scalable approach to welfare scheme discovery by combining user-centric onboarding, eligibility intelligence, and AI-assisted guidance. The project provides immediate utility with extensible architecture and a clear path to verified official-source integration, making it suitable as a robust final year project implementation.
 
+## 16.1 Hero USP Feature (Single Flow)
+The project now includes a high-impact hero flow inside Eligibility Checker:
+- What-if Simulator: compare baseline profile vs simulated scenario (for example, lower income bracket)
+- Success Predictor: per-scheme application success probability estimate
+- Action Plan: step-by-step tasks for document readiness and submission
+
+This creates a strong demo narrative because evaluators can see profile intelligence, prediction, and practical next actions in one run.
+
+## 16.2 Demo Script for Review Panel (3-5 minutes)
+1. Open Eligibility Checker and click Run Demo Story (1-click)
+2. Show baseline eligible schemes and match scores
+3. Show hero simulation summary and per-scheme score delta
+4. Highlight Success Predictor percentage and missing document prompts
+5. Walk through generated Action Plan and explain real-world user benefit
+
 ## 17. Commands for Another System (Run)
 ```sh
 git clone <repo-url>

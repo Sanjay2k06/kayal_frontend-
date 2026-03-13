@@ -65,6 +65,17 @@ type BackendScheme = {
   helpline: string;
   required_documents: string[];
   score?: number;
+  confidence_score?: number;
+  why_matched?: string[];
+  why_not_matched?: string[];
+  source_name?: string;
+  source_last_verified_at?: string;
+  source_freshness_days?: number;
+  source_freshness_status?: string;
+  duplicate_of?: string;
+  link_status?: string;
+  approval_status?: string;
+  deadline?: string;
 };
 
 const toUIScheme = (item: BackendScheme): Scheme => ({
@@ -76,6 +87,17 @@ const toUIScheme = (item: BackendScheme): Scheme => ({
   documents: item.required_documents || [],
   applyLink: item.official_link,
   matchScore: item.score !== undefined ? Math.round(item.score) : undefined,
+  confidenceScore: item.confidence_score,
+  whyMatched: item.why_matched || [],
+  whyNotMatched: item.why_not_matched || [],
+  sourceName: item.source_name,
+  sourceLastVerifiedAt: item.source_last_verified_at,
+  sourceFreshnessDays: item.source_freshness_days,
+  sourceFreshnessStatus: item.source_freshness_status,
+  duplicateOf: item.duplicate_of,
+  linkStatus: item.link_status,
+  approvalStatus: item.approval_status,
+  deadline: item.deadline,
   category: item.category,
   state: item.state,
   officialDepartment: item.official_department,
@@ -149,6 +171,82 @@ export async function checkEligibility(payload: {
   });
   const data = await parseJsonResponse(res);
   return (data.eligible_schemes || []).map(toUIScheme);
+}
+
+export async function runHeroSimulation(payload: {
+  profile: {
+    age: number;
+    gender: string;
+    occupation: string;
+    income: number;
+    state: string;
+    district?: string;
+    education_level?: string;
+    social_category?: string;
+    residence_type?: string;
+    marital_status?: string;
+    disability_status?: string;
+    minority_status?: string;
+  };
+  what_if: {
+    age: number;
+    gender: string;
+    occupation: string;
+    income: number;
+    state: string;
+    district?: string;
+    education_level?: string;
+    social_category?: string;
+    residence_type?: string;
+    marital_status?: string;
+    disability_status?: string;
+    minority_status?: string;
+  };
+}): Promise<{
+  baseline_top_schemes: Scheme[];
+  simulated_top_schemes: Array<{
+    scheme: Scheme;
+    base_score: number;
+    simulated_score: number;
+    score_delta: number;
+    success_probability: number;
+    missing_documents: string[];
+    action_plan: string[];
+  }>;
+  summary: string;
+}> {
+  const res = await fetch(`${API_BASE}/eligibility/hero`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJsonResponse(res);
+  return {
+    baseline_top_schemes: (data.baseline_top_schemes || []).map(toUIScheme),
+    simulated_top_schemes: (data.simulated_top_schemes || []).map((item: any) => ({
+      ...item,
+      scheme: toUIScheme(item.scheme),
+    })),
+    summary: data.summary || "",
+  };
+}
+
+export async function getWorkflowInsights(): Promise<{
+  checklist: Array<{ id: string; label: string; done: boolean; scheme_id?: string }>;
+  reminders: Array<{ scheme_id: string; scheme_name: string; deadline: string; days_left: number }>;
+  missing_documents: string[];
+}> {
+  const res = await fetchWithAuthRetry(`${API_BASE}/workflow`, { headers: { ...authHeaders() } });
+  return parseJsonResponse(res);
+}
+
+export async function toggleChecklistItem(itemId: string, done: boolean): Promise<void> {
+  const res = await fetchWithAuthRetry(`${API_BASE}/workflow/checklist`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ item_id: itemId, done }),
+  });
+  await parseJsonResponse(res);
 }
 
 export async function submitVoiceQuery(audioBlob: Blob): Promise<{ query: string; response: string; recommended_schemes: Scheme[] }> {
@@ -276,6 +374,77 @@ export async function adminUpdateScheme(schemeId: string, payload: Partial<{
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(payload),
   });
+  return parseJsonResponse(res);
+}
+
+export async function getPendingChanges() {
+  const res = await fetchWithAuthRetry(`${API_BASE}/admin/pending-changes`, { headers: { ...authHeaders() } });
+  return parseJsonResponse(res);
+}
+
+export async function previewSchemeDiff(schemeId: string, updates: Record<string, unknown>) {
+  const res = await fetchWithAuthRetry(`${API_BASE}/admin/preview-diff`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ scheme_id: schemeId, updates }),
+  });
+  return parseJsonResponse(res);
+}
+
+export async function approveChange(changeId: string) {
+  const res = await fetchWithAuthRetry(`${API_BASE}/admin/approve-change/${changeId}`, {
+    method: "POST",
+    headers: { ...authHeaders() },
+  });
+  return parseJsonResponse(res);
+}
+
+export async function rejectChange(changeId: string) {
+  const res = await fetchWithAuthRetry(`${API_BASE}/admin/reject-change/${changeId}`, {
+    method: "POST",
+    headers: { ...authHeaders() },
+  });
+  return parseJsonResponse(res);
+}
+
+export async function rollbackScheme(schemeId: string) {
+  const res = await fetchWithAuthRetry(`${API_BASE}/admin/rollback/${schemeId}`, {
+    method: "POST",
+    headers: { ...authHeaders() },
+  });
+  return parseJsonResponse(res);
+}
+
+export async function getDataTrustReport() {
+  const res = await fetchWithAuthRetry(`${API_BASE}/admin/data-trust-report`, { headers: { ...authHeaders() } });
+  return parseJsonResponse(res);
+}
+
+export async function runDataTrustScan() {
+  const res = await fetchWithAuthRetry(`${API_BASE}/admin/scan-data-trust`, {
+    method: "POST",
+    headers: { ...authHeaders() },
+  });
+  return parseJsonResponse(res);
+}
+
+export async function listAdminJobs() {
+  const res = await fetchWithAuthRetry(`${API_BASE}/admin/jobs`, { headers: { ...authHeaders() } });
+  return parseJsonResponse(res);
+}
+
+export async function getAdminWhatsAppStatus(): Promise<{
+  status: string;
+  webhook_path: string;
+  twilio_configured: boolean;
+  from_number?: string | null;
+  default_to_number?: string | null;
+  ngrok_running: boolean;
+  ngrok_public_url?: string | null;
+  webhook_url?: string | null;
+  health_url?: string | null;
+}> {
+  const res = await fetchWithAuthRetry(`${API_BASE}/admin/whatsapp-status`, { headers: { ...authHeaders() } });
   return parseJsonResponse(res);
 }
 

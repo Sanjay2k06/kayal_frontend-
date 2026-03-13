@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import SchemeCard, { Scheme } from "@/components/SchemeCard";
-import { checkEligibility, getAdminStats, getBookmarks, getMyProfile } from "@/lib/api";
+import { checkEligibility, getAdminStats, getBookmarks, getMyProfile, getWorkflowInsights, toggleChecklistItem } from "@/lib/api";
 import { getSessionUser } from "@/lib/auth";
 
 const Dashboard = () => {
@@ -14,6 +14,11 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<any>(null);
   const [adminStats, setAdminStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [workflow, setWorkflow] = useState<{
+    checklist: Array<{ id: string; label: string; done: boolean; scheme_id?: string }>;
+    reminders: Array<{ scheme_id: string; scheme_name: string; deadline: string; days_left: number }>;
+    missing_documents: string[];
+  } | null>(null);
 
   const profileCompletion = profile
     ? Math.round(
@@ -43,6 +48,13 @@ const Dashboard = () => {
         if (profileData.age && profileData.gender && profileData.occupation && profileData.income && profileData.state) {
           const suggestions = await checkEligibility(profileData);
           setRecommendedSchemes(suggestions);
+        }
+
+        try {
+          const workflowData = await getWorkflowInsights();
+          setWorkflow(workflowData);
+        } catch {
+          setWorkflow(null);
         }
 
         if (getSessionUser()?.is_admin) {
@@ -162,6 +174,62 @@ const Dashboard = () => {
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="rounded-lg border bg-card p-5 shadow-card">
+              <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-foreground">
+                <ClipboardCheck size={18} /> Application Workflow
+              </h2>
+              {workflow ? (
+                <div className="mt-3 space-y-4">
+                  {workflow.missing_documents.length > 0 && (
+                    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+                      Missing documents: {workflow.missing_documents.join(", ")}
+                    </div>
+                  )}
+                  {workflow.reminders.length > 0 && (
+                    <div className="rounded-md border bg-background/60 p-3 text-xs text-foreground/80">
+                      <p className="mb-2 font-semibold uppercase tracking-wider text-muted-foreground">Deadline reminders</p>
+                      <ul className="space-y-1">
+                        {workflow.reminders.map((item) => (
+                          <li key={`${item.scheme_id}-${item.deadline}`}>
+                            {item.scheme_name}: {item.deadline} ({item.days_left} days left)
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {workflow.checklist.slice(0, 8).map((item) => (
+                      <label key={item.id} className="flex items-start gap-2 rounded-md border bg-background/60 p-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={item.done}
+                          onChange={async (event) => {
+                            const done = event.target.checked;
+                            await toggleChecklistItem(item.id, done);
+                            setWorkflow((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    checklist: prev.checklist.map((check) =>
+                                      check.id === item.id ? { ...check, done } : check
+                                    ),
+                                  }
+                                : prev
+                            );
+                          }}
+                        />
+                        <span className="text-foreground/80">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 rounded-md border border-dashed bg-background/50 p-4 text-sm text-muted-foreground">
+                  Workflow insights are unavailable right now.
+                </div>
+              )}
             </div>
 
             {/* Saved Schemes */}

@@ -71,3 +71,8 @@ class ChatHistoryItem(BaseModel):
     query: str
     response: str
     created_at: str
+
+
+class ChecklistToggleRequest(BaseModel):
+    item_id: str
+    done: bool

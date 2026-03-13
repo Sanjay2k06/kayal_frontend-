@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     demo_account_disability_status: str = "no"
     demo_account_minority_status: str = "no"
 
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_from: str = "whatsapp:+14155238886"
+    twilio_whatsapp_to_default: str = "whatsapp:+917200809026"
+    whatsapp_bot_number: str = "+14155238886"
+
 
 @lru_cache
 def get_settings() -> Settings:

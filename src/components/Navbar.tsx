@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clearSession, getSessionUser, isAuthenticated } from "@/lib/auth";
 import { logoutUser } from "@/lib/api";
+import { useUIPreferences } from "@/lib/ui-preferences";
 
 const Navbar = () => {
   const location = useLocation();
@@ -14,18 +15,19 @@ const Navbar = () => {
   const [blobStyle, setBlobStyle] = useState<React.CSSProperties>({});
   const navRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const { language, setLanguage, highContrast, setHighContrast } = useUIPreferences();
 
   const navItems = [
-    { label: "Home", path: "/" },
+    { label: language === "hi" ? "होम" : "Home", path: "/" },
     ...(authed
       ? [
-          { label: "Assistant", path: "/assistant" },
-          { label: "Eligibility", path: "/eligibility" },
-          { label: "Schemes", path: "/schemes" },
-          { label: "Compare", path: "/schemes/compare" },
-          { label: "Profile", path: "/profile" },
-          { label: "Dashboard", path: "/dashboard" },
-          ...(isAdmin ? [{ label: "Admin", path: "/admin" }] : []),
+          { label: language === "hi" ? "सहायक" : "Assistant", path: "/assistant" },
+          { label: language === "hi" ? "पात्रता" : "Eligibility", path: "/eligibility" },
+          { label: language === "hi" ? "योजनाएं" : "Schemes", path: "/schemes" },
+          { label: language === "hi" ? "तुलना" : "Compare", path: "/schemes/compare" },
+          { label: language === "hi" ? "प्रोफाइल" : "Profile", path: "/profile" },
+          { label: language === "hi" ? "डैशबोर्ड" : "Dashboard", path: "/dashboard" },
+          ...(isAdmin ? [{ label: language === "hi" ? "एडमिन" : "Admin", path: "/admin" }] : []),
         ]
       : []),
   ];
@@ -117,6 +119,7 @@ const Navbar = () => {
                       ? "text-primary-foreground"
                       : "text-foreground/60 hover:text-foreground"
                   }`}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   {item.label}
                 </Link>
@@ -126,6 +129,23 @@ const Navbar = () => {
 
           {/* CTA button */}
           <div className="hidden items-center gap-2 md:flex">
+            <button
+              type="button"
+              onClick={() => setLanguage(language === "en" ? "hi" : "en")}
+              className="rounded-lg border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+              aria-label="Toggle language"
+            >
+              {language === "en" ? "हिं" : "EN"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setHighContrast(!highContrast)}
+              className="rounded-lg border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+              aria-pressed={highContrast}
+              aria-label="Toggle high contrast mode"
+            >
+              {language === "hi" ? "कॉन्ट्रास्ट" : "Contrast"}
+            </button>
             {authed ? (
               <>
                 <span className="text-xs text-muted-foreground">{email}</span>
@@ -142,7 +162,7 @@ const Navbar = () => {
                   }}
                   className="rounded-lg border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
                 >
-                  Logout
+                  {language === "hi" ? "लॉगआउट" : "Logout"}
                 </button>
               </>
             ) : (
@@ -150,7 +170,7 @@ const Navbar = () => {
                 to="/auth"
                 className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground transition-all duration-300 hover:shadow-elevated"
               >
-                Sign In
+                {language === "hi" ? "साइन इन" : "Sign In"}
               </Link>
             )}
           </div>
